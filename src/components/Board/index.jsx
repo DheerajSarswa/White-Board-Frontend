@@ -1,7 +1,9 @@
+import React from "react";
 import { useEffect, useRef } from "react";
 import rough from "roughjs";
 
 function Board() {
+  console.log("Board");
   const canvasRef = useRef();
 
   useEffect(() => {
