@@ -1,14 +1,14 @@
 import React from "react";
 import Board from "./components/Board";
 import Toolbar from "./components/Toolbar";
+import BoardProvider from "./store/BoardProvider";
 
 function App() {
-  console.log("APP");
   return (
-    <>
+    <BoardProvider>
       <Toolbar />
       <Board />
-    </>
+    </BoardProvider>
   );
 }
 
