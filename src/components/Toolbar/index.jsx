@@ -1,8 +1,7 @@
 import React, { useContext } from "react";
 import classes from "./index.module.css";
 import cx from "classnames";
-import { useState } from "react";
-import { FaSlash } from "react-icons/fa";
+import { FaSlash, FaRegCircle } from "react-icons/fa";
 import { LuRectangleHorizontal } from "react-icons/lu";
 import boardContext from "../../store/board-context";
 import { TOOL_ITEMS } from "../../constants";
@@ -27,6 +26,14 @@ const Toolbar = () => {
         onClick={() => handleToolItemClick(TOOL_ITEMS.RECTANGLE)}
       >
         <LuRectangleHorizontal />
+      </div>
+      <div
+        className={cx(classes.toolItem, {
+          [classes.active]: activeToolItem === TOOL_ITEMS.CIRCLE,
+        })}
+        onClick={() => handleToolItemClick(TOOL_ITEMS.CIRCLE)}
+      >
+        <FaRegCircle />
       </div>
     </div>
   );
