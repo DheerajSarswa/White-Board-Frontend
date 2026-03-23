@@ -9,6 +9,16 @@ function toolboxReducer(state, action) {
       newState[action.payload.tool].stroke = action.payload.stroke;
       return newState;
     }
+    case TOOLBOX_ACTIONS.CHANGE_FILL: {
+      const newState = { ...state };
+      newState[action.payload.tool].fill = action.payload.fill;
+      return newState;
+    }
+    case TOOLBOX_ACTIONS.CHANGE_SIZE: {
+      const newState = { ...state };
+      newState[action.payload.tool].size = action.payload.size;
+      return newState;
+    }
     default:
   }
 }
@@ -50,9 +60,31 @@ const ToolboxProvider = ({ children }) => {
     });
   };
 
+  const handleChangeFill = (tool, fill) => {
+    dispatchToolboxAction({
+      type: TOOLBOX_ACTIONS.CHANGE_FILL,
+      payload: {
+        tool,
+        fill,
+      },
+    });
+  };
+
+  const handleChangeSize = (tool, size) => {
+    dispatchToolboxAction({
+      type: TOOLBOX_ACTIONS.CHANGE_SIZE,
+      payload: {
+        tool,
+        size,
+      },
+    });
+  };
+
   const toolboxContextValue = {
     toolboxState,
     handleChangeStroke,
+    handleChangeFill,
+    handleChangeSize,
   };
 
   return (
