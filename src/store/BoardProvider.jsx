@@ -1,7 +1,8 @@
 import React, { useReducer } from "react";
 import boardContext from "./board-context";
 import { TOOL_ITEMS, BOARD_ACTIONS, TOOL_ACTION_TYPES } from "../constants";
-import { createRoughElement } from "../utils/element";
+import { createRoughElement, getSvgPathFromStroke } from "../utils/element";
+import getStroke from "perfect-freehand";
 
 const boardReducer = (state, action) => {
   switch (action.type) {
@@ -31,18 +32,49 @@ const boardReducer = (state, action) => {
       const { clientX, clientY } = action.payload;
       const newElements = [...state.elements];
       const index = newElements.length - 1;
-      const { x1, y1, stroke, fill, size } = newElements[index];
-      const newElement = createRoughElement(index, x1, y1, clientX, clientY, {
-        type: state.activeToolItem,
-        stroke,
-        fill,
-        size,
-      });
-      newElements[index] = newElement;
-      return {
-        ...state,
-        elements: newElements,
-      };
+      const { type, size } = newElements[index];
+      switch (type) {
+        case TOOL_ITEMS.LINE:
+        case TOOL_ITEMS.RECTANGLE:
+        case TOOL_ITEMS.CIRCLE:
+        case TOOL_ITEMS.ARROW:
+          const { x1, y1, stroke, fill } = newElements[index];
+          const newElement = createRoughElement(
+            index,
+            x1,
+            y1,
+            clientX,
+            clientY,
+            {
+              type: state.activeToolItem,
+              stroke,
+              fill,
+              size,
+            },
+          );
+          newElements[index] = newElement;
+          return {
+            ...state,
+            elements: newElements,
+          };
+        case TOOL_ITEMS.BRUSH: {
+          newElements[index].points = [
+            ...newElements[index].points,
+            { x: clientX, y: clientY },
+          ];
+          newElements[index].path = new Path2D(
+            getSvgPathFromStroke(
+              getStroke(newElements[index].points, { size: size }),
+            ),
+          );
+          return {
+            ...state,
+            elements: newElements,
+          };
+        }
+        default:
+          break;
+      }
     }
 
     case BOARD_ACTIONS.DRAW_UP: {
@@ -58,7 +90,7 @@ const boardReducer = (state, action) => {
 };
 
 const initialBoardState = {
-  activeToolItem: TOOL_ITEMS.LINE,
+  activeToolItem: TOOL_ITEMS.BRUSH,
   toolActionType: TOOL_ACTION_TYPES.NONE,
   elements: [],
 };

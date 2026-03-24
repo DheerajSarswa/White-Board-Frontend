@@ -74,8 +74,8 @@ const Toolbox = () => {
             max={10}
             step={1}
             value={size}
-            onChange={() => {
-              handleChangeSize(activeToolItem, event.target.value);
+            onChange={(e) => {
+              handleChangeSize(activeToolItem, parseInt(e.target.value));
             }}
           />
         </div>
