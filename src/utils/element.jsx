@@ -1,6 +1,6 @@
 import { ARROW_LENGTH, TOOL_ITEMS } from "../constants";
 import rough from "roughjs/bin/rough";
-import { getArrowHeadsCoordinates } from "./math";
+import { getArrowHeadsCoordinates, isPointCloseToLine } from "./math";
 import getStroke from "perfect-freehand";
 
 const gen = rough.generator();
@@ -88,7 +88,42 @@ export const createRoughElement = (
 };
 
 export const isPointNearElement = (element, pointX, pointY) => {
-  return false;
+  const { x1, y1, x2, y2, type, fill } = element;
+  const context = document.getElementById("canvas").getContext("2d");
+  switch (type) {
+    case TOOL_ITEMS.LINE:
+      return isPointCloseToLine(x1, y1, x2, y2, pointX, pointY);
+    case TOOL_ITEMS.ARROW:
+      const { x3, y3, x4, y4 } = getArrowHeadsCoordinates(
+        x1,
+        y1,
+        x2,
+        y2,
+        ARROW_LENGTH,
+      );
+      return (
+        isPointCloseToLine(x1, y1, x2, y2, pointX, pointY) ||
+        isPointCloseToLine(x2, y2, x3, y3, pointX, pointY) ||
+        isPointCloseToLine(x2, y2, x4, y4, pointX, pointY)
+      );
+    case TOOL_ITEMS.RECTANGLE:
+    case TOOL_ITEMS.CIRCLE:
+      return (
+        isPointCloseToLine(x1, y1, x2, y1, pointX, pointY) ||
+        isPointCloseToLine(x2, y1, x2, y2, pointX, pointY) ||
+        isPointCloseToLine(x2, y2, x1, y2, pointX, pointY) ||
+        isPointCloseToLine(x1, y2, x1, y1, pointX, pointY) ||
+        (fill !== null &&
+          pointX <= Math.max(x1, x2) &&
+          pointX >= Math.min(x1, x2) &&
+          pointY <= Math.max(y1, y2) &&
+          pointY >= Math.min(y1, y2))
+      );
+    case TOOL_ITEMS.BRUSH:
+      return context.isPointInPath(element.path, pointX, pointY);
+    default:
+      throw new Error("Type not recognized");
+  }
 };
 
 export function getSvgPathFromStroke(stroke) {

@@ -87,14 +87,14 @@ const boardReducer = (state, action) => {
 
     case BOARD_ACTIONS.ERASE: {
       const { clientX, clientY } = action.payload;
-      const newElements = [...state.elements];
+      let newElements = [...state.elements];
       newElements = newElements.filter((element) => {
         return !isPointNearElement(element, clientX, clientY);
       });
 
       return {
         ...state,
-        element: newElements,
+        elements: newElements,
       };
     }
 
