@@ -31,7 +31,10 @@ const boardReducer = (state, action) => {
       const prevElements = state.elements;
       return {
         ...state,
-        toolActionType: TOOL_ACTION_TYPES.DRAWING,
+        toolActionType:
+          state.activeToolItem === TOOL_ITEMS.TEXT
+            ? TOOL_ACTION_TYPES.WRITING
+            : TOOL_ACTION_TYPES.DRAWING,
         elements: [...prevElements, newElement],
       };
     }
@@ -98,6 +101,16 @@ const boardReducer = (state, action) => {
       };
     }
 
+    case BOARD_ACTIONS.CHANGE_TEXT: {
+      const index = state.elements.length - 1;
+      const newElements = [...state.elements];
+      newElements[index].text = action.payload.text;
+      return {
+        ...state,
+        toolActionType: TOOL_ACTION_TYPES.NONE,
+        elements: newElements,
+      };
+    }
     default:
       return state;
   }
@@ -125,6 +138,7 @@ const BoardProvider = ({ children }) => {
   };
 
   const handleBoardMouseDown = (event, toolboxState) => {
+    if (boardState.toolActionType === TOOL_ACTION_TYPES.WRITING) return;
     const { clientX, clientY } = event;
     if (boardState.activeToolItem === TOOL_ITEMS.ERASER) {
       dispatchBoardAction({
@@ -148,6 +162,7 @@ const BoardProvider = ({ children }) => {
   };
 
   const handleBoardMouseMove = (event) => {
+    if (boardState.toolActionType === TOOL_ACTION_TYPES.WRITING) return;
     const { clientX, clientY } = event;
     if (boardState.toolActionType === TOOL_ACTION_TYPES.DRAWING) {
       dispatchBoardAction({
@@ -169,10 +184,20 @@ const BoardProvider = ({ children }) => {
   };
 
   const handleBoardMouseUp = () => {
+    if (boardState.activeToolItem === TOOL_ITEMS.TEXT) return;
     dispatchBoardAction({
       type: BOARD_ACTIONS.CHANGE_ACTION_TYPE,
       payload: {
         actionType: TOOL_ACTION_TYPES.NONE,
+      },
+    });
+  };
+
+  const handleTextAreaBlur = (text) => {
+    dispatchBoardAction({
+      type: BOARD_ACTIONS.CHANGE_TEXT,
+      payload: {
+        text,
       },
     });
   };
@@ -185,6 +210,7 @@ const BoardProvider = ({ children }) => {
     handleBoardMouseDown,
     handleBoardMouseMove,
     handleBoardMouseUp,
+    handleTextAreaBlur,
   };
 
   return (

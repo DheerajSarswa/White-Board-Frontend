@@ -82,6 +82,9 @@ export const createRoughElement = (
       ];
       element.roughEle = gen.linearPath(points, options);
       return element;
+    case TOOL_ITEMS.TEXT:
+      element.text = "";
+      return element;
     default:
       throw new Error("Type not recognized");
   }

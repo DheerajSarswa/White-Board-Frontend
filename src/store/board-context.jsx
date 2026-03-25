@@ -8,6 +8,7 @@ const boardContext = createContext({
   handleToolItemClick: () => {},
   handleBoardMouseMove: () => {},
   handleBoardMouseUp: () => {},
+  handleTextAreaBlur: () => {},
 });
 
 export default boardContext;
