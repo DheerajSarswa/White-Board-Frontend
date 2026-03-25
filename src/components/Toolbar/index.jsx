@@ -26,10 +26,21 @@ const Toolbar = () => {
 
   const handleDownloadClick = () => {
     const canvas = document.getElementById("canvas");
-    const data = canvas.toDataURL("image/jpeg");
+
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempContext = tempCanvas.getContext("2d");
+
+    tempContext.fillStyle = "white";
+    tempContext.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+    tempContext.drawImage(canvas, 0, 0);
+
+    const data = tempCanvas.toDataURL("image/png");
     const anchor = document.createElement("a");
     anchor.href = data;
-    anchor.download = "board.jpeg";
+    anchor.download = "board.png";
     anchor.click();
   };
 

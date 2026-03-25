@@ -16,6 +16,8 @@ function Board() {
     handleBoardMouseMove,
     handleBoardMouseUp,
     handleTextAreaBlur,
+    handleBoardUndo,
+    handleBoardRedo,
   } = useContext(boardContext);
 
   const { toolboxState } = useContext(toolboxContext);
@@ -25,6 +27,25 @@ function Board() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+
+      if (modifierKey && event.key === "z" && !event.shiftKey) {
+        handleBoardUndo();
+      } else if (modifierKey && event.key === "z" && event.shiftKey) {
+        handleBoardRedo();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleBoardUndo, handleBoardRedo]);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
