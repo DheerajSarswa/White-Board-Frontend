@@ -8,13 +8,20 @@ import {
   FaPaintBrush,
   FaEraser,
   FaFont,
+  FaUndoAlt,
+  FaRedoAlt,
 } from "react-icons/fa";
 import { LuRectangleHorizontal } from "react-icons/lu";
 import boardContext from "../../store/board-context";
 import { TOOL_ITEMS } from "../../constants";
 
 const Toolbar = () => {
-  const { activeToolItem, handleToolItemClick } = useContext(boardContext);
+  const {
+    activeToolItem,
+    handleToolItemClick,
+    handleBoardUndo,
+    handleBoardRedo,
+  } = useContext(boardContext);
 
   return (
     <div className={classes.container}>
@@ -73,6 +80,12 @@ const Toolbar = () => {
         onClick={() => handleToolItemClick(TOOL_ITEMS.ERASER)}
       >
         <FaEraser />
+      </div>
+      <div className={classes.toolItem} onClick={handleBoardUndo}>
+        <FaUndoAlt />
+      </div>
+      <div className={classes.toolItem} onClick={handleBoardRedo}>
+        <FaRedoAlt />
       </div>
     </div>
   );
