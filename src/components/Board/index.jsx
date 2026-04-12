@@ -1,12 +1,18 @@
-import React, { useContext, useLayoutEffect } from "react";
+import React, {
+  useContext,
+  useLayoutEffect,
+  useEffect as useEffect2,
+} from "react";
 import { useEffect, useRef } from "react";
 import rough from "roughjs";
+import { createRoughElement, getSvgPathFromStroke } from "../../utils/element";
+import getStroke from "perfect-freehand";
 import boardContext from "../../store/board-context";
 import { TOOL_ACTION_TYPES, TOOL_ITEMS } from "../../constants";
 import toolboxContext from "../../store/toolbox-context";
 import classes from "./index.module.css";
 
-function Board() {
+function Board({ onElementsChange }) {
   const canvasRef = useRef();
   const textAreaRef = useRef();
   const {
@@ -24,8 +30,13 @@ function Board() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const resize = () => {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
   }, []);
 
   useEffect(() => {
@@ -47,40 +58,87 @@ function Board() {
     };
   }, [handleBoardUndo, handleBoardRedo]);
 
-  useLayoutEffect(() => {
+  // Call onElementsChange whenever elements change
+  useEffect2(() => {
+    if (onElementsChange) {
+      onElementsChange(elements);
+    }
+  }, [elements, onElementsChange]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // Ensure canvas is sized correctly before drawing
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width || window.innerWidth;
+    canvas.height = rect.height || window.innerHeight;
+
     const context = canvas.getContext("2d");
-    context.save();
+    context.clearRect(0, 0, canvas.width, canvas.height);
     const roughCanvas = rough.canvas(canvas);
 
     elements.forEach((element) => {
-      switch (element.type) {
+      const normalizedElement = { ...element };
+      if (
+        [
+          TOOL_ITEMS.LINE,
+          TOOL_ITEMS.RECTANGLE,
+          TOOL_ITEMS.CIRCLE,
+          TOOL_ITEMS.ARROW,
+        ].includes(normalizedElement.type) &&
+        !normalizedElement.roughEle
+      ) {
+        normalizedElement.roughEle = createRoughElement(
+          normalizedElement.id,
+          normalizedElement.x1,
+          normalizedElement.y1,
+          normalizedElement.x2,
+          normalizedElement.y2,
+          normalizedElement,
+        ).roughEle;
+      }
+
+      switch (normalizedElement.type) {
         case TOOL_ITEMS.LINE:
         case TOOL_ITEMS.RECTANGLE:
         case TOOL_ITEMS.CIRCLE:
         case TOOL_ITEMS.ARROW:
-          roughCanvas.draw(element.roughEle);
+          roughCanvas.draw(normalizedElement.roughEle);
           break;
-        case TOOL_ITEMS.BRUSH:
-          context.fillStyle = element.stroke;
-          context.fill(element.path);
+        case TOOL_ITEMS.BRUSH: {
+          const path =
+            normalizedElement.path ||
+            new Path2D(
+              getSvgPathFromStroke(
+                getStroke(normalizedElement.points || [], {
+                  size: normalizedElement.size,
+                }),
+              ),
+            );
+          context.save();
+          context.fillStyle = normalizedElement.stroke;
+          context.fill(path);
           context.restore();
           break;
-        case TOOL_ITEMS.TEXT:
+        }
+        case TOOL_ITEMS.TEXT: {
+          context.save();
           context.textBaseline = "top";
-          context.font = `${element.size}px Caveat, cursive`;
-          context.fillStyle = element.stroke;
-          context.fillText(element.text, element.x1, element.y1);
+          context.font = `${normalizedElement.size}px Caveat, cursive`;
+          context.fillStyle = normalizedElement.stroke;
+          context.fillText(
+            normalizedElement.text,
+            normalizedElement.x1,
+            normalizedElement.y1,
+          );
           context.restore();
           break;
+        }
         default:
           throw new Error("Type not recognized");
       }
     });
-
-    return () => {
-      context.clearRect(0, 0, canvas.width, canvas.height);
-    };
   }, [elements]);
 
   useEffect(() => {
@@ -92,12 +150,21 @@ function Board() {
     }
   }, [toolActionType]);
 
+  const getCanvasCoordinates = (event) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    };
+  };
+
   const mouseDownHandler = (event) => {
-    handleBoardMouseDown(event, toolboxState);
+    handleBoardMouseDown(getCanvasCoordinates(event), toolboxState);
   };
 
   const mouseMoveHandler = (event) => {
-    handleBoardMouseMove(event);
+    handleBoardMouseMove(getCanvasCoordinates(event));
   };
 
   const mouseUpHandler = () => {
@@ -122,6 +189,7 @@ function Board() {
         />
       )}
       <canvas
+        className={classes.canvas}
         ref={canvasRef}
         id="canvas"
         onMouseDown={mouseDownHandler}

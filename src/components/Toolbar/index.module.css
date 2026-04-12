@@ -1,19 +1,20 @@
 @reference "../../index.css";
 
 .container {
-  @apply absolute left-1/2 top-5 px-3 py-2 flex rounded border border-gray-400;
+  @apply absolute left-1/2 top-4 px-2 py-2 flex rounded border border-gray-300;
   transform: translateX(-50%);
-  box-shadow: 1px 0 10px rgba(0, 0, 0, 0.2);
+  background: white;
 }
 
 .toolItem {
-  @apply flex justify-center items-center text-xl p-3 text-black mr-5 last:mr-0 cursor-pointer;
+  @apply flex justify-center items-center text-lg p-2 text-gray-700 mr-2 last:mr-0 cursor-pointer;
+  transition: background 0.2s;
 }
 
 .toolItem:hover {
-  @apply bg-blue-50 text-gray-700 rounded;
+  @apply bg-gray-100 rounded;
 }
 
 .toolItem.active {
-  @apply bg-blue-200 text-gray-700 rounded;
+  @apply bg-gray-200 rounded;
 }

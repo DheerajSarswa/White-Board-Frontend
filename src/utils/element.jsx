@@ -123,6 +123,14 @@ export const isPointNearElement = (element, pointX, pointY) => {
           pointY >= Math.min(y1, y2))
       );
     case TOOL_ITEMS.BRUSH:
+      if (!element.path || !(element.path instanceof Path2D)) {
+        // Reconstruct path if missing (for saved canvases)
+        element.path = new Path2D(
+          getSvgPathFromStroke(
+            getStroke(element.points || [], { size: element.size }),
+          ),
+        );
+      }
       return context.isPointInPath(element.path, pointX, pointY);
     case TOOL_ITEMS.TEXT:
       context.font = `${element.size}px Caveat, cursive`;

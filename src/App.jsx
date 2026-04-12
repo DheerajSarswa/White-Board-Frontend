@@ -1,19 +1,43 @@
 import React from "react";
-import Board from "./components/Board";
-import Toolbar from "./components/Toolbar";
-import BoardProvider from "./store/BoardProvider";
-import ToolboxProvider from "./store/ToolboxProvider";
-import Toolbox from "./components/Toolbox";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./store/AuthContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Register } from "./pages/Register";
+import { Dashboard } from "./pages/Dashboard";
+import { Canvas } from "./pages/Canvas";
 
 function App() {
   return (
-    <BoardProvider>
-      <ToolboxProvider>
-        <Toolbar />
-        <Board />
-        <Toolbox />
-      </ToolboxProvider>
-    </BoardProvider>
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/canvas/:id"
+            element={
+              <ProtectedRoute>
+                <Canvas />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 
