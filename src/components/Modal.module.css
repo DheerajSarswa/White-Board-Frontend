@@ -47,6 +47,12 @@
   font-size: 14px;
 }
 
+.error {
+  color: #dc3545;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 .modal p {
   margin: 0 0 20px 0;
   color: #666;

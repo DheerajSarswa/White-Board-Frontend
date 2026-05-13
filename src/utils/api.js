@@ -99,3 +99,14 @@ export const deleteCanvas = async (id) => {
     throw error.response?.data || error.message;
   }
 };
+
+export const shareCanvas = async (id, sharedWithEmail) => {
+  try {
+    const response = await apiClient.put(`/canvases/share/${id}`, {
+      sharedWithEmail,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};

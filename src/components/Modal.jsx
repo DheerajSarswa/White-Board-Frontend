@@ -67,3 +67,51 @@ export const ConfirmModal = ({ isOpen, onClose, onConfirm, message }) => {
     </Modal>
   );
 };
+
+export const EmailInputModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  canvasName,
+  error,
+}) => {
+  const [email, setEmail] = React.useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (email.trim()) {
+      onConfirm(email.trim());
+    }
+  };
+
+  const handleClose = () => {
+    setEmail("");
+    onClose();
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={handleClose}>
+      <p>Share "{canvasName}" with another user</p>
+      <form onSubmit={handleSubmit}>
+        <label>
+          Email Address:
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter email address"
+            autoFocus
+            required
+          />
+        </label>
+        {error && <div className={styles.error}>{error}</div>}
+        <div className={styles.buttons}>
+          <button type="button" onClick={handleClose}>
+            Cancel
+          </button>
+          <button type="submit">Share</button>
+        </div>
+      </form>
+    </Modal>
+  );
+};

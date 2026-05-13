@@ -177,3 +177,18 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+.shareBtn {
+  width: 100%;
+  padding: 8px;
+  background: #4ecdc4;
+  color: white;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.shareBtn:hover {
+  background: #45b7aa;
+}

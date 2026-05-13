@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllCanvases, createCanvas, deleteCanvas } from "../utils/api";
+import {
+  getAllCanvases,
+  createCanvas,
+  deleteCanvas,
+  shareCanvas,
+} from "../utils/api";
 import { useAuth } from "../store/AuthContext";
-import { CanvasNameModal, ConfirmModal } from "../components/Modal";
+import {
+  CanvasNameModal,
+  ConfirmModal,
+  EmailInputModal,
+} from "../components/Modal";
 import styles from "./Dashboard.module.css";
 
 export const Dashboard = () => {
@@ -13,7 +22,10 @@ export const Dashboard = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [canvasToDelete, setCanvasToDelete] = useState(null);
+  const [canvasToShare, setCanvasToShare] = useState(null);
+  const [shareError, setShareError] = useState("");
 
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -75,6 +87,32 @@ export const Dashboard = () => {
     }
   };
 
+  const handleShareCanvas = (canvas) => {
+    setCanvasToShare(canvas);
+    setShareError("");
+    setShowShareModal(true);
+  };
+
+  const handleShareConfirm = async (sharedWithEmail) => {
+    if (!canvasToShare) return;
+
+    setShareError("");
+    try {
+      await shareCanvas(canvasToShare._id, sharedWithEmail);
+      setShowShareModal(false);
+      setCanvasToShare(null);
+      // Optionally show success message or refresh canvases
+    } catch (err) {
+      // Display backend error message directly
+      if (err.message) {
+        setShareError(err.message);
+      } else {
+        setShareError("Failed to share canvas");
+      }
+      console.error(err);
+    }
+  };
+
   const handleCanvasClick = (id) => {
     navigate(`/canvas/${id}`);
   };
@@ -129,6 +167,15 @@ export const Dashboard = () => {
                 </p>
               </div>
               <button
+                className={styles.shareBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleShareCanvas(canvas);
+                }}
+              >
+                Share
+              </button>
+              <button
                 className={styles.deleteBtn}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -154,6 +201,18 @@ export const Dashboard = () => {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDeleteConfirm}
         message="Are you sure you want to delete this canvas? This action cannot be undone."
+      />
+
+      <EmailInputModal
+        isOpen={showShareModal}
+        onClose={() => {
+          setShowShareModal(false);
+          setCanvasToShare(null);
+          setShareError("");
+        }}
+        onConfirm={handleShareConfirm}
+        canvasName={canvasToShare?.name || ""}
+        error={shareError}
       />
     </div>
   );
