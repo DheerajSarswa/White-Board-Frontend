@@ -14,7 +14,7 @@ export const Modal = ({ isOpen, onClose, children }) => {
 };
 
 export const CanvasNameModal = ({ isOpen, onClose, onConfirm }) => {
-  const [name, setName] = React.useState("Untitled Canvas");
+  const [name, setName] = React.useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -33,7 +33,7 @@ export const CanvasNameModal = ({ isOpen, onClose, onConfirm }) => {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Enter canvas name"
+            placeholder="Enter canvas name, Default : Untitled Canvas"
             autoFocus
           />
         </label>

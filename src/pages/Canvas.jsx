@@ -50,7 +50,6 @@ export const Canvas = () => {
     }
   }, [id]);
 
-  // Debounced save function
   const saveCanvas = useCallback(
     async (elements) => {
       if (!id || isSaving) return;
