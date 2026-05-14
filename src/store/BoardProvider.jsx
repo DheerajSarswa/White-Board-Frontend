@@ -152,6 +152,19 @@ const boardReducer = (state, action) => {
       };
     }
 
+    case BOARD_ACTIONS.SYNC_REMOTE_ELEMENTS: {
+      // Sync remote elements without affecting local undo/redo history
+      // Only update if the remote elements are different from current
+      const remoteElements = action.payload || [];
+      if (JSON.stringify(state.elements) !== JSON.stringify(remoteElements)) {
+        return {
+          ...state,
+          elements: remoteElements,
+        };
+      }
+      return state;
+    }
+
     default:
       return state;
   }
@@ -165,7 +178,11 @@ const initialBoardState = {
   index: 0,
 };
 
-const BoardProvider = ({ children, initialElements = [] }) => {
+const BoardProvider = ({
+  children,
+  initialElements = [],
+  remoteUpdate = null,
+}) => {
   const [boardState, dispatchBoardAction] = useReducer(boardReducer, {
     ...initialBoardState,
     elements: initialElements,
@@ -178,6 +195,16 @@ const BoardProvider = ({ children, initialElements = [] }) => {
       payload: initialElements,
     });
   }, [initialElements]);
+
+  // Handle remote updates from WebSocket
+  useEffect(() => {
+    if (remoteUpdate && remoteUpdate.elements) {
+      dispatchBoardAction({
+        type: BOARD_ACTIONS.SYNC_REMOTE_ELEMENTS,
+        payload: remoteUpdate.elements,
+      });
+    }
+  }, [remoteUpdate]);
 
   const handleToolItemClick = (tool) => {
     dispatchBoardAction({

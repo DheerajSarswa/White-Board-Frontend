@@ -26,6 +26,7 @@ export const BOARD_ACTIONS = {
   CHANGE_TEXT: "CHANGE_TEXT",
   UNDO: "UNDO",
   REDO: "REDO",
+  SYNC_REMOTE_ELEMENTS: "SYNC_REMOTE_ELEMENTS",
 };
 
 export const COLORS = {

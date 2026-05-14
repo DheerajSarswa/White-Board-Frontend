@@ -82,3 +82,27 @@
   cursor: pointer;
   font-size: 13px;
 }
+
+.connected {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.disconnected {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.collaborators {
+  margin-left: 12px;
+  font-size: 11px;
+  color: #666;
+  display: inline-block;
+}
+
+.statusContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: auto;
+}
