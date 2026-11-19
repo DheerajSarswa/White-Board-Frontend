@@ -1,6 +1,8 @@
 import io from "socket.io-client";
 
-const SOCKET_URL = "http://localhost:3030";
+import { BACKEND_URL } from "./config";
+
+const SOCKET_URL = BACKEND_URL;
 
 let socket = null;
 

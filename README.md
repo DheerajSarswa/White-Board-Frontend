@@ -150,3 +150,20 @@ The application uses React Context API for state management:
 ---
 
 **Enjoy creating on the whiteboard! 🎨**
+
+## Deployment configuration
+
+Set `VITE_BACKEND_URL` in the frontend hosting project's build environment to the
+backend's public HTTPS origin, for example `https://your-backend.onrender.com`.
+Use the origin without `/api`; REST and Socket.IO both use this value. Redeploy
+the frontend after changing it. Local development defaults to
+`http://localhost:3030`.
+
+The backend needs `MONGODB_URI`, `JWT_SECRET`, and `FRONTEND_ORIGIN` in its hosting
+environment. Set `FRONTEND_ORIGIN` to the frontend's public HTTPS origin. Run the
+backend as a persistent Node web service with `npm ci` and `npm start`, and use
+`/health` as its health check. The host must support WebSockets; retain a single
+backend instance for the current in-memory Socket.IO rooms.
+
+`vercel.json` serves the React application for routes such as `/dashboard` and
+`/canvas/:id`, including direct visits and refreshes.
