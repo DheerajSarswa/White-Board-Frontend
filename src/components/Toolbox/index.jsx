@@ -32,7 +32,7 @@ const Toolbox = () => {
           <div className={classes.colorsContainer}>
             <div>
               <input
-                type="color"
+                aria-label="Custom color" type="color"
                 className={classes.colorPicker}
                 value={strokeColor}
                 onChange={(e) =>
@@ -42,14 +42,15 @@ const Toolbox = () => {
             </div>
             {Object.keys(COLORS).map((k) => {
               return (
-                <div
+                <button
+                  type="button" title={k.toLowerCase()} aria-label={`Stroke ${k.toLowerCase()}`} aria-pressed={strokeColor === COLORS[k]}
                   key={k}
                   className={cx(classes.colorBox, {
                     [classes.activeColorBox]: strokeColor === COLORS[k],
                   })}
                   style={{ backgroundColor: COLORS[k] }}
                   onClick={() => handleChangeStroke(activeToolItem, COLORS[k])}
-                ></div>
+                />
               );
             })}
           </div>
@@ -61,15 +62,15 @@ const Toolbox = () => {
           <div className={classes.toolBoxLabel}>Fill Color</div>
           <div className={classes.colorsContainer}>
             {fillColor === null ? (
-              <div
+              <button type="button" aria-label="Choose a fill color"
                 className={cx(classes.colorPicker, classes.noFillColorBox)}
                 onClick={() => handleChangeFill(activeToolItem, COLORS.BLACK)}
-              ></div>
+              />
             ) : (
               <div>
                 <input
                   className={classes.colorPicker}
-                  type="color"
+                  aria-label="Custom color" type="color"
                   value={fillColor}
                   onChange={(e) =>
                     handleChangeFill(activeToolItem, e.target.value)
@@ -77,22 +78,23 @@ const Toolbox = () => {
                 ></input>
               </div>
             )}
-            <div
+            <button type="button" title="No fill" aria-label="No fill" aria-pressed={fillColor === null}
               className={cx(classes.colorBox, classes.noFillColorBox, {
                 [classes.activeColorBox]: fillColor === null,
               })}
               onClick={() => handleChangeFill(activeToolItem, null)}
-            ></div>
+            />
             {Object.keys(COLORS).map((k) => {
               return (
-                <div
+                <button
+                  type="button" title={k.toLowerCase()} aria-label={`Fill ${k.toLowerCase()}`} aria-pressed={fillColor === COLORS[k]}
                   key={k}
                   className={cx(classes.colorBox, {
                     [classes.activeColorBox]: fillColor === COLORS[k],
                   })}
                   style={{ backgroundColor: COLORS[k] }}
                   onClick={() => handleChangeFill(activeToolItem, COLORS[k])}
-                ></div>
+                />
               );
             })}
           </div>
@@ -105,7 +107,7 @@ const Toolbox = () => {
             {activeToolItem === TOOL_ITEMS.TEXT ? "Font Size" : "Brush Size"}
           </div>
           <input
-            type="range"
+            aria-label={activeToolItem === TOOL_ITEMS.TEXT ? "Font size" : "Brush size"} type="range"
             min={activeToolItem === TOOL_ITEMS.TEXT ? 12 : 1}
             max={activeToolItem === TOOL_ITEMS.TEXT ? 64 : 10}
             step={1}

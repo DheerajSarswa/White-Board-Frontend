@@ -44,75 +44,28 @@ const Toolbar = () => {
     anchor.click();
   };
 
+  const tools = [
+    [TOOL_ITEMS.BRUSH, "Brush", <FaPaintBrush key="FaPaintBrush" />],
+    [TOOL_ITEMS.LINE, "Line", <FaSlash key="FaSlash" />],
+    [TOOL_ITEMS.RECTANGLE, "Rectangle", <LuRectangleHorizontal key="LuRectangleHorizontal" />],
+    [TOOL_ITEMS.CIRCLE, "Circle", <FaRegCircle key="FaRegCircle" />],
+    [TOOL_ITEMS.ARROW, "Arrow", <FaArrowRight key="FaArrowRight" />],
+    [TOOL_ITEMS.TEXT, "Text", <FaFont key="FaFont" />],
+    [TOOL_ITEMS.ERASER, "Eraser", <FaEraser key="FaEraser" />],
+  ];
   return (
-    <div className={classes.container}>
-      <div
-        className={cx(classes.toolItem, {
-          [classes.active]: activeToolItem === TOOL_ITEMS.BRUSH,
-        })}
-        onClick={() => handleToolItemClick(TOOL_ITEMS.BRUSH)}
-      >
-        <FaPaintBrush />
-      </div>
-      <div
-        className={cx(classes.toolItem, {
-          [classes.active]: activeToolItem === TOOL_ITEMS.LINE,
-        })}
-        onClick={() => handleToolItemClick(TOOL_ITEMS.LINE)}
-      >
-        <FaSlash />
-      </div>
-      <div
-        className={cx(classes.toolItem, {
-          [classes.active]: activeToolItem === TOOL_ITEMS.RECTANGLE,
-        })}
-        onClick={() => handleToolItemClick(TOOL_ITEMS.RECTANGLE)}
-      >
-        <LuRectangleHorizontal />
-      </div>
-      <div
-        className={cx(classes.toolItem, {
-          [classes.active]: activeToolItem === TOOL_ITEMS.CIRCLE,
-        })}
-        onClick={() => handleToolItemClick(TOOL_ITEMS.CIRCLE)}
-      >
-        <FaRegCircle />
-      </div>
-      <div
-        className={cx(classes.toolItem, {
-          [classes.active]: activeToolItem === TOOL_ITEMS.ARROW,
-        })}
-        onClick={() => handleToolItemClick(TOOL_ITEMS.ARROW)}
-      >
-        <FaArrowRight />
-      </div>
-      <div
-        className={cx(classes.toolItem, {
-          [classes.active]: activeToolItem === TOOL_ITEMS.TEXT,
-        })}
-        onClick={() => handleToolItemClick(TOOL_ITEMS.TEXT)}
-      >
-        <FaFont />
-      </div>
-      <div
-        className={cx(classes.toolItem, {
-          [classes.active]: activeToolItem === TOOL_ITEMS.ERASER,
-        })}
-        onClick={() => handleToolItemClick(TOOL_ITEMS.ERASER)}
-      >
-        <FaEraser />
-      </div>
-      <div className={classes.toolItem} onClick={handleBoardUndo}>
-        <FaUndoAlt />
-      </div>
-      <div className={classes.toolItem} onClick={handleBoardRedo}>
-        <FaRedoAlt />
-      </div>
-      <div className={classes.toolItem} onClick={handleDownloadClick}>
-        <FaDownload />
-      </div>
+    <div className={classes.container} role="group" aria-label="Drawing tools">
+      {tools.map(([tool, label, icon]) => (
+        <button key={tool} type="button" title={label} aria-label={label}
+          aria-pressed={activeToolItem === tool}
+          className={cx(classes.toolItem, { [classes.active]: activeToolItem === tool })}
+          onClick={() => handleToolItemClick(tool)}>{icon}</button>
+      ))}
+      <span className={classes.divider} aria-hidden="true" />
+      <button type="button" className={classes.toolItem} title="Undo (⌘/Ctrl Z)" aria-label="Undo" onClick={handleBoardUndo}><FaUndoAlt /></button>
+      <button type="button" className={classes.toolItem} title="Redo (⌘/Ctrl Shift Z)" aria-label="Redo" onClick={handleBoardRedo}><FaRedoAlt /></button>
+      <button type="button" className={classes.toolItem} title="Download PNG" aria-label="Download PNG" onClick={handleDownloadClick}><FaDownload /></button>
     </div>
   );
 };
-
 export default Toolbar;

@@ -1,3 +1,4 @@
+import { FiPlus, FiSearch, FiGrid, FiShare2, FiTrash2, FiEdit3 } from "react-icons/fi";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -15,6 +16,7 @@ import {
 import styles from "./Dashboard.module.css";
 
 export const Dashboard = () => {
+  const [search, setSearch] = useState("");
   const [canvases, setCanvases] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -117,55 +119,59 @@ export const Dashboard = () => {
     navigate(`/canvas/${id}`);
   };
 
+  const visibleCanvases = canvases.filter((canvas) => canvas.name.toLowerCase().includes(search.trim().toLowerCase()));
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <div>
-          <h1>Welcome back, {user?.name || "User"}</h1>
-          <p className={styles.subTitle}>Your canvases are ready.</p>
-        </div>
+        <div className={styles.brand}><span className={styles.brandMark}>✳</span> whiteboard</div>
         <div className={styles.headerRight}>
-          <button className={styles.logoutBtn} onClick={logout}>
-            Logout
-          </button>
+          <span className={styles.userName}>{user?.name || "My workspace"}</span>
+          <button className={styles.logoutBtn} onClick={logout}>Log out</button>
         </div>
       </header>
-
-      {error && <div className={styles.error}>{error}</div>}
-
-      <button
-        className={styles.createBtn}
-        onClick={handleCreateCanvas}
-        disabled={isCreating}
-      >
-        {isCreating ? "Creating..." : "+ Create New Canvas"}
-      </button>
-
+      <main className={styles.main}>
+        <div className={styles.eyebrow}>Your workspace</div>
+        <div className={styles.intro}>
+          <div><h1>A fresh space for your next idea.</h1>
+          <p className={styles.subTitle}>Welcome back, {user?.name || "there"}. Pick up a canvas or start something new.</p></div>
+          <button className={styles.createBtn} onClick={handleCreateCanvas} disabled={isCreating}>
+            <FiPlus size={18} /> {isCreating ? "Creating…" : "New canvas"}
+          </button>
+        </div>
+        {error && <div role="alert" className={styles.error}>{error}</div>}
+        <div className={styles.sectionHeader}>
+          <h2><FiGrid size={16} /> Your canvases <span className={styles.count}>{canvases.length}</span></h2>
+          <label className={styles.search}><FiSearch size={15} /><input aria-label="Search canvases" placeholder="Find a canvas…" value={search} onChange={(e) => setSearch(e.target.value)} type="search" /></label>
+        </div>
       {isLoading ? (
         <div className={styles.loadingContainer}>
           <p>Loading canvases...</p>
         </div>
-      ) : canvases.length === 0 ? (
+      ) : visibleCanvases.length === 0 ? (
         <div className={styles.emptyState}>
-          <p>No canvases yet. Create one to get started!</p>
+          <FiEdit3 /><h3>{search ? "No matching canvases" : "Every great idea starts here."}</h3>
+          <p>{search ? "Try a different name to find your canvas." : "Create your first canvas and see where it takes you."}</p>
         </div>
       ) : (
         <div className={styles.canvasGrid}>
-          {canvases.map((canvas) => (
+          {visibleCanvases.map((canvas) => (
             <div
               key={canvas._id}
               className={styles.canvasCard}
-              onClick={() => handleCanvasClick(canvas._id)}
             >
+              <button className={styles.openCanvas} onClick={() => handleCanvasClick(canvas._id)} aria-label={`Open ${canvas.name}`}>
               <div className={styles.canvasPreview}>
-                <span className={styles.previewPlaceholder}>Canvas</span>
+                <span className={styles.previewPlaceholder}><FiEdit3 /></span>
               </div>
               <div className={styles.cardContent}>
                 <h3 className={styles.canvasName}>{canvas.name}</h3>
                 <p className={styles.canvasDate}>
-                  {new Date(canvas.createdAt).toLocaleDateString()}
+                  Created {new Date(canvas.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                 </p>
               </div>
+              </button>
+              <div className={styles.cardActions}>
               <button
                 className={styles.shareBtn}
                 onClick={(e) => {
@@ -173,7 +179,7 @@ export const Dashboard = () => {
                   handleShareCanvas(canvas);
                 }}
               >
-                Share
+                <FiShare2 /> Share
               </button>
               <button
                 className={styles.deleteBtn}
@@ -183,13 +189,15 @@ export const Dashboard = () => {
                 }}
                 disabled={deletingId === canvas._id}
               >
-                {deletingId === canvas._id ? "Deleting..." : "Delete"}
+                <FiTrash2 /> {deletingId === canvas._id ? "Deleting…" : "Delete"}
               </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
+      </main>
       <CanvasNameModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}

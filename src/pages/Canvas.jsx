@@ -17,7 +17,7 @@ import {
   removeSocketListener,
 } from "../utils/socket";
 
-const CanvasPageContent = ({ initialElements, canvasId, onElementsChange }) => {
+const CanvasPageContent = ({ onElementsChange }) => {
   return (
     <ToolboxProvider>
       <div className={styles.canvasContainer}>
@@ -40,10 +40,10 @@ export const Canvas = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [lastSaveTime, setLastSaveTime] = useState(null);
-  const [collaborators, setCollaborators] = useState([]);
+  const [collaborators] = useState([]);
   const [lastRemoteUpdate, setLastRemoteUpdate] = useState(null);
 
-  const fetchCanvas = async () => {
+  const fetchCanvas = useCallback(async () => {
     setIsLoading(true);
     setError("");
     try {
@@ -55,13 +55,13 @@ export const Canvas = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (id) {
       fetchCanvas();
     }
-  }, [id]);
+  }, [id, fetchCanvas]);
 
   // Join canvas room and setup WebSocket listeners
   useEffect(() => {
@@ -164,14 +164,14 @@ export const Canvas = () => {
     <div className={styles.pageContainer}>
       <div className={styles.topBar}>
         <button className={styles.backBtn} onClick={handleGoBack}>
-          ← Back to Dashboard
+          ← All canvases
         </button>
         <h2 className={styles.canvasTitle}>{canvas?.name || "Canvas"}</h2>
         <div className={styles.statusContainer}>
           {isSaving && <span className={styles.status}>Saving...</span>}
           {lastSaveTime && !isSaving && (
             <span className={styles.status}>
-              Last saved: {lastSaveTime.toLocaleTimeString()}
+              Saved {lastSaveTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
           <span
@@ -193,8 +193,6 @@ export const Canvas = () => {
         remoteUpdate={lastRemoteUpdate}
       >
         <CanvasPageContent
-          initialElements={canvas?.elements || []}
-          canvasId={id}
           onElementsChange={saveCanvas}
         />
       </BoardProvider>

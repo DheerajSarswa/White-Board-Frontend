@@ -93,15 +93,23 @@ export const Register = () => {
 
   return (
     <div className={styles.container}>
+      <aside className={styles.story}>
+        <div className={styles.brand}><span>✳</span> whiteboard</div>
+        <div><h2>A little space.<br />A lot of <em>possibility.</em></h2>
+        <p>Sketch the first idea. Connect the dots. Make something great, together.</p></div>
+        <div className={styles.storyFooter}>Your ideas deserve a place to grow.</div>
+      </aside>
       <div className={styles.formWrapper}>
-        <h1 className={styles.title}>{isLogin ? "Login" : "Create Account"}</h1>
+        <div className={styles.eyebrow}>Your creative workspace</div>
+        <h1 className={styles.title}>{isLogin ? "Welcome back." : "Make room for ideas."}</h1>
 
+        <p className={styles.subtitle}>{isLogin ? "Sign in to pick up where you left off." : "Create an account and bring your next idea to life."}</p>
         <form onSubmit={handleSubmit} className={styles.form}>
           {!isLogin && (
             <div className={styles.formGroup}>
               <label htmlFor="name">Name</label>
               <input
-                id="name"
+                id="name" autoComplete="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -114,7 +122,7 @@ export const Register = () => {
           <div className={styles.formGroup}>
             <label htmlFor="email">Email</label>
             <input
-              id="email"
+              id="email" autoComplete="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -126,7 +134,7 @@ export const Register = () => {
           <div className={styles.formGroup}>
             <label htmlFor="password">Password</label>
             <input
-              id="password"
+              id="password" autoComplete={isLogin ? "current-password" : "new-password"}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -139,7 +147,7 @@ export const Register = () => {
             <div className={styles.formGroup}>
               <label htmlFor="confirmPassword">Confirm Password</label>
               <input
-                id="confirmPassword"
+                id="confirmPassword" autoComplete="new-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -149,7 +157,7 @@ export const Register = () => {
             </div>
           )}
 
-          {error && <div className={styles.error}>{error}</div>}
+          {error && <div role="alert" className={styles.error}>{error}</div>}
 
           <button
             type="submit"

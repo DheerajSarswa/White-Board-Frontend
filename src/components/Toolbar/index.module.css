@@ -1,20 +1,6 @@
-@reference "../../index.css";
-
-.container {
-  @apply absolute left-1/2 top-4 px-2 py-2 flex rounded border border-gray-300;
-  transform: translateX(-50%);
-  background: white;
-}
-
-.toolItem {
-  @apply flex justify-center items-center text-lg p-2 text-gray-700 mr-2 last:mr-0 cursor-pointer;
-  transition: background 0.2s;
-}
-
-.toolItem:hover {
-  @apply bg-gray-100 rounded;
-}
-
-.toolItem.active {
-  @apply bg-gray-200 rounded;
-}
+.container { position: absolute; z-index: 5; top: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; align-items: center; padding: 7px; background: #fffffffa; border: 1px solid #dde5d7; border-radius: 12px; box-shadow: 0 4px 18px #3041260c; max-width: calc(100% - 24px); overflow-x: auto; }
+.toolItem { width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #697764; background: transparent; border: 0; border-radius: 7px; font-size: 16px; }
+.toolItem:hover { color: #365d35; background: #f0f4ed; }
+.toolItem.active { background: #e5efdf; color: #376332; box-shadow: inset 0 0 0 1px #d4e1cb; }
+.divider { height: 22px; width: 1px; background: #e1e7dc; margin: 0 4px; flex-shrink: 0; }
+@media (max-width: 600px) { .container { top: 12px; gap: 2px; padding: 5px; } .toolItem { width: 29px; height: 34px; font-size: 14px; } .divider { margin: 0 1px; } }

@@ -1,84 +1,13 @@
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-width: 400px;
-  width: 100%;
-  margin: 20px;
-}
-
-.modal h2 {
-  margin: 0 0 16px 0;
-  color: #333;
-}
-
-.modal form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.modal label {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  font-weight: 500;
-  color: #555;
-}
-
-.modal input {
-  padding: 8px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.error {
-  color: #dc3545;
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.modal p {
-  margin: 0 0 20px 0;
-  color: #666;
-}
-
-.buttons {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.buttons button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.buttons button:first-child {
-  background: #f5f5f5;
-  color: #333;
-}
-
-.buttons button:last-child {
-  background: #333;
-  color: white;
-}
+.overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 20px; background: #18271c66; backdrop-filter: blur(4px); z-index: 1000; }
+.modal { width: 100%; max-width: 420px; max-height: calc(100dvh - 40px); overflow-y: auto; background: white; padding: 30px; border: 1px solid #e0e7db; border-radius: 16px; box-shadow: 0 24px 80px #172a1826; }
+.modal h2 { margin: 0 0 20px; font-size: 21px; font-weight: 600; letter-spacing: -.6px; }
+.modal form { display: flex; flex-direction: column; gap: 20px; }
+.modal label { display: flex; flex-direction: column; gap: 10px; font-size: 12px; font-weight: 600; color: #5c6c56; }
+.modal input { width: 100%; padding: 12px 14px; border: 1px solid #dce4d6; background: #fafbf8; border-radius: 8px; font-size: 13px; font-weight: 400; }
+.modal p { font-size: 13px; line-height: 1.8; color: #75816e; margin: 0 0 22px; overflow-wrap: anywhere; }
+.error { color: #b6503c; font-size: 12px; padding: 10px; background: #fff1ec; border-radius: 6px; }
+.buttons { display: flex; gap: 10px; justify-content: flex-end; }
+.buttons button { padding: 10px 18px; border: 0; border-radius: 7px; font-size: 12px; font-weight: 600; }
+.buttons button:first-child { background: #f0f3ed; color: #67745f; }
+.buttons button:last-child { background: var(--accent); color: white; }
+.buttons button:hover { filter: brightness(.95); }

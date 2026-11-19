@@ -1,108 +1,15 @@
-.pageContainer {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background: white;
-}
-
-.topBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: white;
-  border-bottom: 1px solid #ddd;
-}
-
-.backBtn {
-  padding: 6px 12px;
-  background: #f5f5f5;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.2s;
-}
-
-.backBtn:hover {
-  background: #e8e8e8;
-}
-
-.canvasTitle {
-  margin: 0;
-  flex: 1;
-  text-align: center;
-  color: #333;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.statusContainer {
-  min-width: 100px;
-  text-align: right;
-}
-
-.status {
-  font-size: 11px;
-  color: #888;
-}
-
-.canvasContainer {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-}
-
-.loadingContainer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  color: #aaa;
-  font-size: 14px;
-}
-
-.errorContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  color: #d32f2f;
-  gap: 16px;
-}
-
-.errorContainer button {
-  padding: 8px 16px;
-  background: #333;
-  color: white;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.connected {
-  color: #4caf50;
-  font-weight: 500;
-}
-
-.disconnected {
-  color: #f44336;
-  font-weight: 500;
-}
-
-.collaborators {
-  margin-left: 12px;
-  font-size: 11px;
-  color: #666;
-  display: inline-block;
-}
-
-.statusContainer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: auto;
-}
+.pageContainer { height: 100dvh; display: flex; flex-direction: column; background: #fafbf8; overflow: hidden; }
+.topBar { min-height: 68px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 24px; background: white; border-bottom: 1px solid var(--border); z-index: 3; }
+.backBtn { padding: 9px 12px; background: #f4f6f1; border: 1px solid var(--border); border-radius: 8px; color: #52664f; font-size: 12px; white-space: nowrap; }
+.backBtn:hover { background: #e8eee4; }
+.canvasTitle { margin: 0; flex: 1; min-width: 0; text-align: center; color: #344333; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusContainer { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.status { color: #899484; font-size: 10px; white-space: nowrap; }
+.connected, .disconnected { padding: 5px 9px; border-radius: 5px; font-size: 10px; }
+.connected { background: #eef5eb; color: #47733d; }
+.disconnected { background: #fff1e9; color: #a56540; }
+.canvasContainer { position: relative; flex: 1; min-height: 0; overflow: hidden; background-color: #fcfdfb; background-image: radial-gradient(#dde4d7 .8px, transparent .8px); background-size: 20px 20px; }
+.loadingContainer, .errorContainer { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #728078; font-size: 14px; }
+.errorContainer button { padding: 10px 18px; background: var(--accent); color: white; border: 0; border-radius: 8px; }
+.collaborators { color: #728078; font-size: 11px; }
+@media (max-width: 700px) { .topBar { padding: 12px; gap: 10px; flex-wrap: wrap; } .backBtn { font-size: 11px; } .canvasTitle { text-align: right; } .statusContainer { width: 100%; justify-content: flex-end; } }

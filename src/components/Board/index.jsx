@@ -1,8 +1,4 @@
-import React, {
-  useContext,
-  useLayoutEffect,
-  useEffect as useEffect2,
-} from "react";
+import React, { useContext } from "react";
 import { useEffect, useRef } from "react";
 import rough from "roughjs";
 import { createRoughElement, getSvgPathFromStroke } from "../../utils/element";
@@ -15,6 +11,7 @@ import classes from "./index.module.css";
 function Board({ onElementsChange }) {
   const canvasRef = useRef();
   const textAreaRef = useRef();
+  const onChangeRef = useRef(onElementsChange);
   const {
     elements,
     toolActionType,
@@ -31,8 +28,8 @@ function Board({ onElementsChange }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     const resize = () => {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
+      // Redraw existing content after resizing the bitmap.
+      canvas.dispatchEvent(new Event("board-resize"));
     };
     resize();
     window.addEventListener("resize", resize);
@@ -44,9 +41,12 @@ function Board({ onElementsChange }) {
       const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const modifierKey = isMac ? event.metaKey : event.ctrlKey;
 
-      if (modifierKey && event.key === "z" && !event.shiftKey) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target.isContentEditable) return;
+      if (modifierKey && event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault();
         handleBoardUndo();
-      } else if (modifierKey && event.key === "z" && event.shiftKey) {
+      } else if (modifierKey && event.key.toLowerCase() === "z" && event.shiftKey) {
+        event.preventDefault();
         handleBoardRedo();
       }
     };
@@ -58,17 +58,22 @@ function Board({ onElementsChange }) {
     };
   }, [handleBoardUndo, handleBoardRedo]);
 
-  // Call onElementsChange whenever elements change
-  useEffect2(() => {
-    if (onElementsChange) {
-      onElementsChange(elements);
-    }
-  }, [elements, onElementsChange]);
+  useEffect(() => {
+    onChangeRef.current = onElementsChange;
+  }, [onElementsChange]);
+
+  useEffect(() => {
+    // Wait until a stroke is complete, rather than saving every mouse move.
+    if (toolActionType !== TOOL_ACTION_TYPES.NONE) return;
+    const timeout = setTimeout(() => onChangeRef.current?.(elements), 400);
+    return () => clearTimeout(timeout);
+  }, [elements, toolActionType]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const draw = () => {
     // Ensure canvas is sized correctly before drawing
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width || window.innerWidth;
@@ -139,6 +144,10 @@ function Board({ onElementsChange }) {
           throw new Error("Type not recognized");
       }
     });
+    };
+    draw();
+    canvas.addEventListener("board-resize", draw);
+    return () => canvas.removeEventListener("board-resize", draw);
   }, [elements]);
 
   useEffect(() => {
@@ -192,9 +201,15 @@ function Board({ onElementsChange }) {
         className={classes.canvas}
         ref={canvasRef}
         id="canvas"
-        onMouseDown={mouseDownHandler}
-        onMouseMove={mouseMoveHandler}
-        onMouseUp={mouseUpHandler}
+        aria-label="Drawing canvas"
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          mouseDownHandler(event);
+        }}
+        onPointerMove={mouseMoveHandler}
+        onPointerUp={mouseUpHandler}
+        onPointerCancel={mouseUpHandler}
       />
     </>
   );
