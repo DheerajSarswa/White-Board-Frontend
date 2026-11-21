@@ -1,168 +1,163 @@
-import React, { useCallback, useEffect, useReducer } from "react";
-import boardContext from "./board-context";
+import { useCallback, useMemo, useReducer } from "react";
+import BoardContext from "./board-context";
 import { TOOL_ITEMS, BOARD_ACTIONS, TOOL_ACTION_TYPES } from "../constants";
-import {
-  createRoughElement,
-  getSvgPathFromStroke,
-  isPointNearElement,
-} from "../utils/element";
-import getStroke from "perfect-freehand";
+import { createElementId, createRoughElement } from "../utils/element";
+import { useCanvasSync } from "./useCanvasSync";
 
-const boardReducer = (state, action) => {
-  switch (action.type) {
-    case BOARD_ACTIONS.CHANGE_TOOL: {
-      return { ...state, activeToolItem: action.payload.tool };
-    }
+const noEdit = { add: [], remove: [] };
 
-    case BOARD_ACTIONS.CHANGE_ACTION_TYPE: {
-      return { ...state, toolActionType: action.payload.actionType };
-    }
+const applyEdit = (elements, { add, remove }) => {
+  const removed = new Set(remove);
+  const updated = elements.filter(({ id }) => !removed.has(id));
+  const existing = new Set(updated.map(({ id }) => id));
+  for (const { element, index } of add) {
+    if (existing.has(element.id)) continue;
+    updated.splice(index ?? updated.length, 0, element);
+    existing.add(element.id);
+  }
+  return updated;
+};
 
-    case BOARD_ACTIONS.SET_ELEMENTS: {
-      const normalizedElements = action.payload || [];
-      return {
-        ...state,
-        elements: normalizedElements,
-        history: [normalizedElements],
-        index: 0,
-        toolActionType: TOOL_ACTION_TYPES.NONE,
-      };
-    }
+const queueEdit = (state, edit, editId) => {
+  const sequence = state.sequence + 1;
+  return {
+    ...state,
+    sequence,
+    pending: [...state.pending, { edit, editId, sequence }],
+    elements: applyEdit(state.elements, edit),
+  };
+};
+
+const commitGesture = (state, redo, undo, editId) => {
+  const finished = { ...state, gestureId: null, draft: null, erased: [], toolActionType: TOOL_ACTION_TYPES.NONE };
+  if (!redo.add.length && !redo.remove.length) return finished;
+  return queueEdit({
+    ...finished,
+    undo: [...state.undo, { undo, redo }],
+    redo: [],
+  }, redo, editId);
+};
+
+const addDrawing = (state, element, editId) => commitGesture(
+  state,
+  { ...noEdit, add: [{ element }] },
+  { ...noEdit, remove: [element.id] },
+  editId,
+);
+
+const boardReducer = (state, { type, payload }) => {
+  switch (type) {
+    case BOARD_ACTIONS.CHANGE_TOOL:
+      return { ...state, activeToolItem: payload.tool };
 
     case BOARD_ACTIONS.DRAW_DOWN: {
-      const { x, y, stroke, fill, size } = action.payload;
-      const newElement = createRoughElement(state.elements.length, x, y, x, y, {
-        type: state.activeToolItem,
-        stroke,
-        fill,
-        size,
-      });
+      if (state.toolActionType !== TOOL_ACTION_TYPES.NONE) return state;
+      const tool = state.activeToolItem;
+      const { id, x, y, options } = payload;
+      if (tool === TOOL_ITEMS.ERASER) {
+        return {
+          ...state,
+          gestureId: id,
+          toolActionType: TOOL_ACTION_TYPES.ERASING,
+          erased: payload.erased,
+        };
+      }
       return {
         ...state,
-        toolActionType:
-          state.activeToolItem === TOOL_ITEMS.TEXT
-            ? TOOL_ACTION_TYPES.WRITING
-            : TOOL_ACTION_TYPES.DRAWING,
-        elements: [...state.elements, newElement],
+        gestureId: id,
+        toolActionType: tool === TOOL_ITEMS.TEXT ? TOOL_ACTION_TYPES.WRITING : TOOL_ACTION_TYPES.DRAWING,
+        draft: createRoughElement(id, x, y, x, y, { ...options, type: tool }),
       };
     }
 
     case BOARD_ACTIONS.DRAW_MOVE: {
-      const { x, y } = action.payload;
-      const newElements = [...state.elements];
-      const index = newElements.length - 1;
-      if (index < 0) return state;
-
-      const element = newElements[index];
-      const { type, size } = element;
-
-      switch (type) {
-        case TOOL_ITEMS.LINE:
-        case TOOL_ITEMS.RECTANGLE:
-        case TOOL_ITEMS.CIRCLE:
-        case TOOL_ITEMS.ARROW: {
-          const { x1, y1, stroke, fill } = element;
-          const updatedElement = createRoughElement(index, x1, y1, x, y, {
-            type: state.activeToolItem,
-            stroke,
-            fill,
-            size,
-          });
-          newElements[index] = updatedElement;
-          return {
-            ...state,
-            elements: newElements,
-          };
-        }
-        case TOOL_ITEMS.BRUSH: {
-          const updatedPoints = [...element.points, { x, y }];
-          newElements[index] = {
-            ...element,
-            points: updatedPoints,
-            path: new Path2D(
-              getSvgPathFromStroke(getStroke(updatedPoints, { size })),
-            ),
-          };
-          return {
-            ...state,
-            elements: newElements,
-          };
-        }
-        default:
-          return state;
-      }
-    }
-
-    case BOARD_ACTIONS.DRAW_UP: {
-      const newHistory = state.history.slice(0, state.index + 1);
-      newHistory.push(state.elements);
+      if (state.toolActionType !== TOOL_ACTION_TYPES.DRAWING) return state;
+      const { x, y } = payload;
+      const draft = state.draft;
       return {
         ...state,
-        history: newHistory,
-        index: state.index + 1,
+        draft: draft.type === TOOL_ITEMS.BRUSH
+          ? { ...draft, points: [...draft.points, { x, y }], path: undefined }
+          : createRoughElement(draft.id, draft.x1, draft.y1, x, y, draft),
       };
     }
 
     case BOARD_ACTIONS.ERASE: {
-      const { x, y } = action.payload;
-      const newElements = state.elements.filter((element) => {
-        return !isPointNearElement(element, x, y);
-      });
-      const newHistory = state.history.slice(0, state.index + 1);
-      newHistory.push(newElements);
+      if (state.toolActionType !== TOOL_ACTION_TYPES.ERASING || !payload.length) return state;
+      const erasedIds = new Set(state.erased.map(({ element }) => element.id));
       return {
         ...state,
-        elements: newElements,
-        history: newHistory,
-        index: state.index + 1,
+        erased: [...state.erased, ...payload.filter(({ element }) => !erasedIds.has(element.id))],
       };
     }
 
-    case BOARD_ACTIONS.CHANGE_TEXT: {
-      const index = state.elements.length - 1;
-      if (index < 0) return state;
-      const newElements = [...state.elements];
-      newElements[index] = { ...newElements[index], text: action.payload.text };
-      const newHistory = state.history.slice(0, state.index + 1);
-      newHistory.push(newElements);
-      return {
-        ...state,
-        toolActionType: TOOL_ACTION_TYPES.NONE,
-        elements: newElements,
-        history: newHistory,
-        index: state.index + 1,
-      };
-    }
-
-    case BOARD_ACTIONS.UNDO: {
-      if (state.index <= 0) return state;
-      return {
-        ...state,
-        elements: state.history[state.index - 1],
-        index: state.index - 1,
-      };
-    }
-
-    case BOARD_ACTIONS.REDO: {
-      if (state.index >= state.history.length - 1) return state;
-      return {
-        ...state,
-        elements: state.history[state.index + 1],
-        index: state.index + 1,
-      };
-    }
-
-    case BOARD_ACTIONS.SYNC_REMOTE_ELEMENTS: {
-      // Sync remote elements without affecting local undo/redo history
-      // Only update if the remote elements are different from current
-      const remoteElements = action.payload || [];
-      if (JSON.stringify(state.elements) !== JSON.stringify(remoteElements)) {
-        return {
-          ...state,
-          elements: remoteElements,
-        };
+    case BOARD_ACTIONS.DRAW_UP:
+      if (state.toolActionType === TOOL_ACTION_TYPES.DRAWING) {
+        return addDrawing(state, state.draft, state.gestureId);
+      }
+      if (state.toolActionType === TOOL_ACTION_TYPES.ERASING) {
+        // Capture only removals still present when the gesture finishes.
+        const erasedIds = new Set(state.erased.map(({ element }) => element.id));
+        const add = state.elements.flatMap((element, index) =>
+          erasedIds.has(element.id) ? [{ element, index }] : [],
+        );
+        return commitGesture(
+          state,
+          { ...noEdit, remove: add.map(({ element }) => element.id) },
+          { ...noEdit, add },
+          state.gestureId,
+        );
       }
       return state;
+
+    case BOARD_ACTIONS.CHANGE_TEXT:
+      if (state.toolActionType !== TOOL_ACTION_TYPES.WRITING) return state;
+      return payload.text.trim()
+        ? addDrawing(state, { ...state.draft, text: payload.text }, state.gestureId)
+        : commitGesture(state, noEdit, noEdit, state.gestureId);
+
+    case BOARD_ACTIONS.UNDO:
+    case BOARD_ACTIONS.REDO: {
+      if (state.toolActionType !== TOOL_ACTION_TYPES.NONE) return state;
+      const direction = type === BOARD_ACTIONS.UNDO ? "undo" : "redo";
+      const opposite = direction === "undo" ? "redo" : "undo";
+      const history = state[direction];
+      let entry = history.at(-1);
+      if (!entry) return state;
+      if (direction === "undo" && entry.redo.add.length) {
+        const redo = {
+          ...entry.redo,
+          add: entry.redo.add.map(({ element, index }) => {
+            const currentIndex = state.elements.findIndex(({ id }) => id === element.id);
+            return { element, index: currentIndex >= 0 ? currentIndex : index };
+          }),
+        };
+        entry = { ...entry, redo };
+      }
+      return queueEdit({
+        ...state,
+        [direction]: history.slice(0, -1),
+        [opposite]: [...state[opposite], entry],
+      }, entry[direction], payload.editId);
+    }
+
+    case BOARD_ACTIONS.SYNC_REMOTE_ELEMENTS:
+    case BOARD_ACTIONS.SAVE_CONFIRMED: {
+      const confirmed = type === BOARD_ACTIONS.SAVE_CONFIRMED;
+      const newer = payload.revision > state.revision;
+      if (!newer && !confirmed) return state;
+      const savedElements = newer ? payload.elements : state.savedElements;
+      const pending = confirmed
+        ? state.pending.filter(({ editId }) => editId !== payload.editId)
+        : state.pending;
+      return {
+        ...state,
+        savedElements,
+        revision: newer ? payload.revision : state.revision,
+        elements: pending.reduce((elements, { edit }) => applyEdit(elements, edit), savedElements),
+        pending,
+        lastSaveTime: confirmed ? payload.savedAt : state.lastSaveTime,
+      };
     }
 
     default:
@@ -170,136 +165,72 @@ const boardReducer = (state, action) => {
   }
 };
 
-const initialBoardState = {
-  activeToolItem: TOOL_ITEMS.BRUSH,
-  toolActionType: TOOL_ACTION_TYPES.NONE,
-  elements: [],
-  history: [[]],
-  index: 0,
-};
+const BoardProvider = ({ children, canvas }) => {
+  const [state, dispatch] = useReducer(boardReducer, canvas, (initial) => ({
+    activeToolItem: TOOL_ITEMS.BRUSH,
+    toolActionType: TOOL_ACTION_TYPES.NONE,
+    gestureId: null,
+    draft: null,
+    erased: [],
+    elements: initial.elements,
+    savedElements: initial.elements,
+    revision: initial.revision ?? 0,
+    undo: [],
+    redo: [],
+    sequence: 0,
+    pending: [],
+    lastSaveTime: null,
+  }));
 
-const BoardProvider = ({
-  children,
-  initialElements = [],
-  remoteUpdate = null,
-}) => {
-  const [boardState, dispatchBoardAction] = useReducer(boardReducer, {
-    ...initialBoardState,
-    elements: initialElements,
-    history: [initialElements],
-  });
-
-  useEffect(() => {
-    dispatchBoardAction({
-      type: BOARD_ACTIONS.SET_ELEMENTS,
-      payload: initialElements,
-    });
-  }, [initialElements]);
-
-  // Handle remote updates from WebSocket
-  useEffect(() => {
-    if (remoteUpdate && remoteUpdate.elements) {
-      dispatchBoardAction({
-        type: BOARD_ACTIONS.SYNC_REMOTE_ELEMENTS,
-        payload: remoteUpdate.elements,
-      });
+  const gesture = useMemo(() => {
+    if (state.toolActionType === TOOL_ACTION_TYPES.DRAWING) {
+      return { editId: state.gestureId, edit: { ...noEdit, add: [{ element: state.draft }] } };
     }
-  }, [remoteUpdate]);
-
-  const handleToolItemClick = (tool) => {
-    dispatchBoardAction({
-      type: BOARD_ACTIONS.CHANGE_TOOL,
-      payload: { tool },
-    });
-  };
-
-  const handleBoardMouseDown = (coords, toolboxState) => {
-    if (boardState.toolActionType === TOOL_ACTION_TYPES.WRITING) return;
-
-    if (boardState.activeToolItem === TOOL_ITEMS.ERASER) {
-      dispatchBoardAction({
-        type: BOARD_ACTIONS.CHANGE_ACTION_TYPE,
-        payload: { actionType: TOOL_ACTION_TYPES.ERASING },
-      });
-      dispatchBoardAction({
-        type: BOARD_ACTIONS.ERASE,
-        payload: { x: coords.x, y: coords.y },
-      });
-      return;
+    if (state.erased.length) {
+      return { editId: state.gestureId, edit: { ...noEdit, remove: state.erased.map(({ element }) => element.id) } };
     }
+    return null;
+  }, [state.draft, state.erased, state.gestureId, state.toolActionType]);
+  const { previews, saveError, retrySave, isLive } = useCanvasSync(canvas._id, state.pending, gesture, dispatch);
 
-    dispatchBoardAction({
-      type: BOARD_ACTIONS.DRAW_DOWN,
-      payload: {
-        x: coords.x,
-        y: coords.y,
-        stroke: toolboxState[boardState.activeToolItem]?.stroke,
-        fill: toolboxState[boardState.activeToolItem]?.fill,
-        size: toolboxState[boardState.activeToolItem]?.size,
-      },
-    });
-  };
-
-  const handleBoardMouseMove = (coords) => {
-    if (boardState.toolActionType === TOOL_ACTION_TYPES.WRITING) return;
-
-    if (boardState.toolActionType === TOOL_ACTION_TYPES.DRAWING) {
-      dispatchBoardAction({
-        type: BOARD_ACTIONS.DRAW_MOVE,
-        payload: { x: coords.x, y: coords.y },
-      });
-    } else if (boardState.toolActionType === TOOL_ACTION_TYPES.ERASING) {
-      dispatchBoardAction({
-        type: BOARD_ACTIONS.ERASE,
-        payload: { x: coords.x, y: coords.y },
-      });
-    }
-  };
-
-  const handleBoardMouseUp = () => {
-    if (boardState.toolActionType === TOOL_ACTION_TYPES.WRITING) return;
-    if (boardState.toolActionType === TOOL_ACTION_TYPES.DRAWING) {
-      dispatchBoardAction({ type: BOARD_ACTIONS.DRAW_UP });
-    }
-    dispatchBoardAction({
-      type: BOARD_ACTIONS.CHANGE_ACTION_TYPE,
-      payload: { actionType: TOOL_ACTION_TYPES.NONE },
-    });
-  };
-
-  const handleTextAreaBlur = (text) => {
-    dispatchBoardAction({
-      type: BOARD_ACTIONS.CHANGE_TEXT,
-      payload: { text },
-    });
-  };
+  const visibleElements = useMemo(() => {
+    const withPreviews = Array.from(previews.values()).reduce(
+      (elements, { edit }) => applyEdit(elements, edit),
+      state.elements,
+    );
+    if (gesture) return applyEdit(withPreviews, gesture.edit);
+    return state.draft ? [...withPreviews, state.draft] : withPreviews;
+  }, [state.elements, state.draft, gesture, previews]);
 
   const handleBoardUndo = useCallback(() => {
-    dispatchBoardAction({ type: BOARD_ACTIONS.UNDO });
+    dispatch({ type: BOARD_ACTIONS.UNDO, payload: { editId: createElementId() } });
   }, []);
-
   const handleBoardRedo = useCallback(() => {
-    dispatchBoardAction({ type: BOARD_ACTIONS.REDO });
+    dispatch({ type: BOARD_ACTIONS.REDO, payload: { editId: createElementId() } });
   }, []);
 
-  const boardContextValue = {
-    activeToolItem: boardState.activeToolItem,
-    toolActionType: boardState.toolActionType,
-    elements: boardState.elements,
-    handleToolItemClick,
-    handleBoardMouseDown,
-    handleBoardMouseMove,
-    handleBoardMouseUp,
-    handleTextAreaBlur,
+  const value = {
+    activeToolItem: state.activeToolItem,
+    toolActionType: state.toolActionType,
+    elements: visibleElements,
+    draft: state.draft,
+    erasableElements: state.elements,
+    isSaving: state.pending.length > 0,
+    lastSaveTime: state.lastSaveTime,
+    saveError,
+    retrySave,
+    isLive,
+    handleToolItemClick: (tool) => dispatch({ type: BOARD_ACTIONS.CHANGE_TOOL, payload: { tool } }),
+    handleBoardMouseDown: (payload) => dispatch({ type: BOARD_ACTIONS.DRAW_DOWN, payload }),
+    handleBoardMouseMove: (payload) => dispatch({ type: BOARD_ACTIONS.DRAW_MOVE, payload }),
+    handleErase: (payload) => dispatch({ type: BOARD_ACTIONS.ERASE, payload }),
+    handleBoardMouseUp: () => dispatch({ type: BOARD_ACTIONS.DRAW_UP }),
+    handleTextAreaBlur: (text) => dispatch({ type: BOARD_ACTIONS.CHANGE_TEXT, payload: { text } }),
     handleBoardUndo,
     handleBoardRedo,
   };
 
-  return (
-    <boardContext.Provider value={boardContextValue}>
-      {children}
-    </boardContext.Provider>
-  );
+  return <BoardContext.Provider value={value}>{children}</BoardContext.Provider>;
 };
 
 export default BoardProvider;

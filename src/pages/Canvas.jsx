@@ -1,149 +1,84 @@
-import { useState, useEffect, useCallback, useContext } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { loadCanvas, updateCanvas } from "../utils/api";
+import { useContext, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { loadCanvas } from "../utils/api";
 import BoardProvider from "../store/BoardProvider";
 import ToolboxProvider from "../store/ToolboxProvider";
 import Toolbar from "../components/Toolbar";
 import Board from "../components/Board";
 import Toolbox from "../components/Toolbox";
+import boardContext from "../store/board-context";
 import styles from "./Canvas.module.css";
-import authContext from "../store/auth-context";
-import socketContext from "../store/socket-context";
-import {
-  joinCanvas,
-  leaveCanvas,
-  sendCanvasUpdate,
-  onCanvasUpdated,
-  removeSocketListener,
-} from "../utils/socket";
 
-const CanvasPageContent = ({ onElementsChange }) => {
+const CanvasPageContent = ({ name, onGoBack }) => {
+  const { isLive, isSaving, lastSaveTime, saveError, retrySave } = useContext(boardContext);
+
   return (
-    <ToolboxProvider>
-      <div className={styles.canvasContainer}>
-        <Toolbar />
-        <Board onElementsChange={onElementsChange} />
-        <Toolbox />
+    <div className={styles.pageContainer}>
+      <div className={styles.topBar}>
+        <button className={styles.backBtn} onClick={onGoBack}>
+          ← All canvases
+        </button>
+        <h2 className={styles.canvasTitle}>{name || "Canvas"}</h2>
+        <div className={styles.statusContainer}>
+          {saveError ? (
+            <>
+              <span className={styles.status} role="alert">{saveError}</span>
+              <button className={styles.backBtn} onClick={retrySave}>Retry save</button>
+            </>
+          ) : isSaving ? (
+            <span className={styles.status}>Saving...</span>
+          ) : lastSaveTime && (
+            <span className={styles.status}>
+              Saved {lastSaveTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          <span className={`${styles.status} ${isLive ? styles.connected : styles.disconnected}`}>
+            {isLive ? "✓ Online" : "✗ Offline"}
+          </span>
+        </div>
       </div>
-    </ToolboxProvider>
+
+      <ToolboxProvider>
+        <div className={styles.canvasContainer}>
+          <Toolbar />
+          <Board />
+          <Toolbox />
+        </div>
+      </ToolboxProvider>
+    </div>
   );
 };
 
-export const Canvas = () => {
-  const { id } = useParams();
+const CanvasRoom = ({ id }) => {
   const navigate = useNavigate();
-  const { token } = useContext(authContext);
-  const { isConnected } = useContext(socketContext);
-
   const [canvas, setCanvas] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [lastSaveTime, setLastSaveTime] = useState(null);
-  const [collaborators] = useState([]);
-  const [lastRemoteUpdate, setLastRemoteUpdate] = useState(null);
+  const [error, setError] = useState(false);
 
-  const fetchCanvas = useCallback(async () => {
-    setIsLoading(true);
-    setError("");
-    try {
-      const response = await loadCanvas(id);
-      setCanvas(response.canvas);
-    } catch (err) {
-      setError("Failed to load canvas");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
+  useEffect(() => {
+    let active = true;
+    loadCanvas(id).then((response) => {
+      if (active) setCanvas(response.canvas);
+    }).catch((err) => {
+      if (active) {
+        setError(true);
+        console.error(err);
+      }
+    });
+    return () => { active = false; };
   }, [id]);
 
-  useEffect(() => {
-    if (id) {
-      fetchCanvas();
-    }
-  }, [id, fetchCanvas]);
+  const handleGoBack = () => navigate("/dashboard");
 
-  // Join canvas room and setup WebSocket listeners
-  useEffect(() => {
-    if (!id || !isConnected || !token) return;
+  if (error) {
+    return (
+      <div className={styles.errorContainer}>
+        <p>Failed to load canvas</p>
+        <button onClick={handleGoBack}>Back to Dashboard</button>
+      </div>
+    );
+  }
 
-    const joinRoom = async () => {
-      try {
-        await joinCanvas(id);
-        console.log(`Joined canvas room: ${id}`);
-
-        // Setup listener for remote canvas updates
-        const handleRemoteUpdate = (data) => {
-          console.log("Received remote canvas update:", data);
-          setLastRemoteUpdate({
-            elements: data.elements,
-            updatedBy: data.updatedBy,
-            timestamp: data.timestamp,
-          });
-        };
-
-        onCanvasUpdated(handleRemoteUpdate);
-
-        return () => {
-          removeSocketListener("canvas-updated", handleRemoteUpdate);
-        };
-      } catch (err) {
-        console.error("Failed to join canvas room:", err);
-      }
-    };
-
-    const cleanup = joinRoom();
-
-    return () => {
-      cleanup?.then?.((fn) => fn?.());
-      leaveCanvas(id);
-    };
-  }, [id, isConnected, token]);
-
-  const saveCanvas = useCallback(
-    async (elements) => {
-      if (!id || isSaving) return;
-
-      const serializableElements = elements.map(
-        ({ id, type, x1, y1, x2, y2, stroke, fill, size, points, text }) => ({
-          id,
-          type,
-          x1,
-          y1,
-          x2,
-          y2,
-          stroke,
-          fill,
-          size,
-          points,
-          text,
-        }),
-      );
-
-      setIsSaving(true);
-      try {
-        // Save to backend
-        await updateCanvas(id, serializableElements);
-        setLastSaveTime(new Date());
-
-        // Broadcast update to other users via WebSocket
-        if (isConnected) {
-          sendCanvasUpdate(id, serializableElements);
-        }
-      } catch (err) {
-        console.error("Failed to save canvas:", err);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [id, isSaving, isConnected],
-  );
-
-  const handleGoBack = () => {
-    navigate("/dashboard");
-  };
-
-  if (isLoading) {
+  if (!canvas) {
     return (
       <div className={styles.loadingContainer}>
         <p>Loading canvas...</p>
@@ -151,51 +86,14 @@ export const Canvas = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className={styles.errorContainer}>
-        <p>{error}</p>
-        <button onClick={handleGoBack}>Back to Dashboard</button>
-      </div>
-    );
-  }
-
   return (
-    <div className={styles.pageContainer}>
-      <div className={styles.topBar}>
-        <button className={styles.backBtn} onClick={handleGoBack}>
-          ← All canvases
-        </button>
-        <h2 className={styles.canvasTitle}>{canvas?.name || "Canvas"}</h2>
-        <div className={styles.statusContainer}>
-          {isSaving && <span className={styles.status}>Saving...</span>}
-          {lastSaveTime && !isSaving && (
-            <span className={styles.status}>
-              Saved {lastSaveTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          <span
-            className={`${styles.status} ${isConnected ? styles.connected : styles.disconnected}`}
-          >
-            {isConnected ? "✓ Online" : "✗ Offline"}
-          </span>
-          {collaborators.length > 0 && (
-            <span className={styles.collaborators}>
-              {collaborators.length} collaborator
-              {collaborators.length !== 1 ? "s" : ""} online
-            </span>
-          )}
-        </div>
-      </div>
-
-      <BoardProvider
-        initialElements={canvas?.elements || []}
-        remoteUpdate={lastRemoteUpdate}
-      >
-        <CanvasPageContent
-          onElementsChange={saveCanvas}
-        />
-      </BoardProvider>
-    </div>
+    <BoardProvider canvas={canvas}>
+      <CanvasPageContent name={canvas.name} onGoBack={handleGoBack} />
+    </BoardProvider>
   );
+};
+
+export const Canvas = () => {
+  const { id } = useParams();
+  return <CanvasRoom key={id} id={id} />;
 };

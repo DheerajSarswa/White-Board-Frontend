@@ -93,6 +93,11 @@ export const updateCanvas = async (id, elements) => {
   }
 };
 
+export const saveCanvasEdit = async (id, edit) => {
+  const response = await apiClient.patch(`/canvases/${id}`, edit, { timeout: 10000 });
+  return response.data;
+};
+
 export const deleteCanvas = async (id) => {
   try {
     const response = await apiClient.delete(`/canvases/${id}`);

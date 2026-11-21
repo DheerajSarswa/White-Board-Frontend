@@ -1,23 +1,28 @@
-import React, { useContext } from "react";
-import { useEffect, useRef } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef } from "react";
 import rough from "roughjs";
-import { createRoughElement, getSvgPathFromStroke } from "../../utils/element";
+import { createElementId, createRoughElement, getSvgPathFromStroke, isPointNearElement } from "../../utils/element";
 import getStroke from "perfect-freehand";
 import boardContext from "../../store/board-context";
 import { TOOL_ACTION_TYPES, TOOL_ITEMS } from "../../constants";
 import toolboxContext from "../../store/toolbox-context";
 import classes from "./index.module.css";
 
-function Board({ onElementsChange }) {
+const drawnShapes = new WeakMap();
+const brushPaths = new WeakMap();
+
+function Board() {
   const canvasRef = useRef();
   const textAreaRef = useRef();
-  const onChangeRef = useRef(onElementsChange);
   const {
+    activeToolItem,
     elements,
+    erasableElements,
+    draft,
     toolActionType,
     handleBoardMouseDown,
     handleBoardMouseMove,
     handleBoardMouseUp,
+    handleErase,
     handleTextAreaBlur,
     handleBoardUndo,
     handleBoardRedo,
@@ -31,21 +36,25 @@ function Board({ onElementsChange }) {
       // Redraw existing content after resizing the bitmap.
       canvas.dispatchEvent(new Event("board-resize"));
     };
-    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(canvas);
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", resize);
+    };
   }, []);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+      const modifierKey = event.metaKey || event.ctrlKey;
+      const key = event.key.toLowerCase();
 
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target.isContentEditable) return;
-      if (modifierKey && event.key.toLowerCase() === "z" && !event.shiftKey) {
+      if (modifierKey && key === "z" && !event.shiftKey) {
         event.preventDefault();
         handleBoardUndo();
-      } else if (modifierKey && event.key.toLowerCase() === "z" && event.shiftKey) {
+      } else if (modifierKey && ((key === "z" && event.shiftKey) || key === "y")) {
         event.preventDefault();
         handleBoardRedo();
       }
@@ -58,92 +67,62 @@ function Board({ onElementsChange }) {
     };
   }, [handleBoardUndo, handleBoardRedo]);
 
-  useEffect(() => {
-    onChangeRef.current = onElementsChange;
-  }, [onElementsChange]);
-
-  useEffect(() => {
-    // Wait until a stroke is complete, rather than saving every mouse move.
-    if (toolActionType !== TOOL_ACTION_TYPES.NONE) return;
-    const timeout = setTimeout(() => onChangeRef.current?.(elements), 400);
-    return () => clearTimeout(timeout);
-  }, [elements, toolActionType]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const draw = () => {
-    // Ensure canvas is sized correctly before drawing
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width || window.innerWidth;
-    canvas.height = rect.height || window.innerHeight;
+      const rect = canvas.getBoundingClientRect();
+      const scale = window.devicePixelRatio || 1;
+      const width = rect.width || window.innerWidth;
+      const height = rect.height || window.innerHeight;
+      const bitmapWidth = Math.round(width * scale);
+      const bitmapHeight = Math.round(height * scale);
+      if (canvas.width !== bitmapWidth) canvas.width = bitmapWidth;
+      if (canvas.height !== bitmapHeight) canvas.height = bitmapHeight;
 
-    const context = canvas.getContext("2d");
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    const roughCanvas = rough.canvas(canvas);
+      const context = canvas.getContext("2d");
+      context.setTransform(scale, 0, 0, scale, 0, 0);
+      context.clearRect(0, 0, width, height);
+      const roughCanvas = rough.canvas(canvas);
 
-    elements.forEach((element) => {
-      const normalizedElement = { ...element };
-      if (
-        [
-          TOOL_ITEMS.LINE,
-          TOOL_ITEMS.RECTANGLE,
-          TOOL_ITEMS.CIRCLE,
-          TOOL_ITEMS.ARROW,
-        ].includes(normalizedElement.type) &&
-        !normalizedElement.roughEle
-      ) {
-        normalizedElement.roughEle = createRoughElement(
-          normalizedElement.id,
-          normalizedElement.x1,
-          normalizedElement.y1,
-          normalizedElement.x2,
-          normalizedElement.y2,
-          normalizedElement,
-        ).roughEle;
-      }
-
-      switch (normalizedElement.type) {
-        case TOOL_ITEMS.LINE:
-        case TOOL_ITEMS.RECTANGLE:
-        case TOOL_ITEMS.CIRCLE:
-        case TOOL_ITEMS.ARROW:
-          roughCanvas.draw(normalizedElement.roughEle);
-          break;
-        case TOOL_ITEMS.BRUSH: {
-          const path =
-            normalizedElement.path ||
-            new Path2D(
-              getSvgPathFromStroke(
-                getStroke(normalizedElement.points || [], {
-                  size: normalizedElement.size,
-                }),
-              ),
-            );
-          context.save();
-          context.fillStyle = normalizedElement.stroke;
-          context.fill(path);
-          context.restore();
-          break;
+      for (const element of elements) {
+        const { id, type, x1, y1, x2, y2, stroke, size } = element;
+        switch (type) {
+          case TOOL_ITEMS.LINE:
+          case TOOL_ITEMS.RECTANGLE:
+          case TOOL_ITEMS.CIRCLE:
+          case TOOL_ITEMS.ARROW: {
+            let shape = element.roughEle || drawnShapes.get(element);
+            if (!shape) {
+              shape = createRoughElement(id, x1, y1, x2, y2, element).roughEle;
+              drawnShapes.set(element, shape);
+            }
+            roughCanvas.draw(shape);
+            break;
+          }
+          case TOOL_ITEMS.BRUSH: {
+            let path = element.path || brushPaths.get(element);
+            if (!path) {
+              path = new Path2D(getSvgPathFromStroke(getStroke(element.points || [], { size })));
+              brushPaths.set(element, path);
+            }
+            context.save();
+            context.fillStyle = stroke;
+            context.fill(path);
+            context.restore();
+            break;
+          }
+          case TOOL_ITEMS.TEXT:
+            context.save();
+            context.textBaseline = "top";
+            context.font = `${size}px Caveat, cursive`;
+            context.fillStyle = stroke;
+            context.fillText(element.text, x1, y1);
+            context.restore();
+            break;
         }
-        case TOOL_ITEMS.TEXT: {
-          context.save();
-          context.textBaseline = "top";
-          context.font = `${normalizedElement.size}px Caveat, cursive`;
-          context.fillStyle = normalizedElement.stroke;
-          context.fillText(
-            normalizedElement.text,
-            normalizedElement.x1,
-            normalizedElement.y1,
-          );
-          context.restore();
-          break;
-        }
-        default:
-          throw new Error("Type not recognized");
       }
-    });
     };
     draw();
     canvas.addEventListener("board-resize", draw);
@@ -151,11 +130,8 @@ function Board({ onElementsChange }) {
   }, [elements]);
 
   useEffect(() => {
-    const textarea = textAreaRef.current;
     if (toolActionType === TOOL_ACTION_TYPES.WRITING) {
-      setTimeout(() => {
-        textarea.focus();
-      }, 0);
+      textAreaRef.current?.focus();
     }
   }, [toolActionType]);
 
@@ -168,17 +144,9 @@ function Board({ onElementsChange }) {
     };
   };
 
-  const mouseDownHandler = (event) => {
-    handleBoardMouseDown(getCanvasCoordinates(event), toolboxState);
-  };
-
-  const mouseMoveHandler = (event) => {
-    handleBoardMouseMove(getCanvasCoordinates(event));
-  };
-
-  const mouseUpHandler = () => {
-    handleBoardMouseUp();
-  };
+  const erasedAt = ({ x, y }) => erasableElements.flatMap((element) =>
+    isPointNearElement(element, x, y) ? [{ element }] : [],
+  );
 
   return (
     <>
@@ -188,10 +156,10 @@ function Board({ onElementsChange }) {
           ref={textAreaRef}
           className={classes.textElementBox}
           style={{
-            top: elements[elements.length - 1].y1,
-            left: elements[elements.length - 1].x1,
-            fontSize: `${elements[elements.length - 1]?.size}px`,
-            color: elements[elements.length - 1]?.stroke,
+            top: draft.y1,
+            left: draft.x1,
+            fontSize: `${draft.size}px`,
+            color: draft.stroke,
             fontFamily: '"Caveat", cursive',
           }}
           onBlur={(e) => handleTextAreaBlur(e.target.value)}
@@ -203,13 +171,36 @@ function Board({ onElementsChange }) {
         id="canvas"
         aria-label="Drawing canvas"
         onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          mouseDownHandler(event);
+          if (event.button !== 0 || !event.isPrimary) return;
+          if (toolActionType === TOOL_ACTION_TYPES.WRITING) return;
+          if (activeToolItem === TOOL_ITEMS.TEXT) {
+            // Keep the pointer's default focus change from blurring the new editor.
+            event.preventDefault();
+          } else {
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }
+          const coords = getCanvasCoordinates(event);
+          handleBoardMouseDown({
+            ...coords,
+            id: createElementId(),
+            options: toolboxState[activeToolItem],
+            erased: activeToolItem === TOOL_ITEMS.ERASER ? erasedAt(coords) : [],
+          });
         }}
-        onPointerMove={mouseMoveHandler}
-        onPointerUp={mouseUpHandler}
-        onPointerCancel={mouseUpHandler}
+        onPointerMove={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          const coords = getCanvasCoordinates(event);
+          if (toolActionType === TOOL_ACTION_TYPES.ERASING) handleErase(erasedAt(coords));
+          else if (toolActionType === TOOL_ACTION_TYPES.DRAWING) handleBoardMouseMove(coords);
+        }}
+        onPointerUp={(event) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          const coords = getCanvasCoordinates(event);
+          if (toolActionType === TOOL_ACTION_TYPES.ERASING) handleErase(erasedAt(coords));
+          else if (toolActionType === TOOL_ACTION_TYPES.DRAWING) handleBoardMouseMove(coords);
+          handleBoardMouseUp();
+        }}
+        onLostPointerCapture={handleBoardMouseUp}
       />
     </>
   );

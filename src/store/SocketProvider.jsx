@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
-import socketContext from "./socket-context";
+import { useState, useEffect, useCallback } from "react";
+import SocketContext from "./socket-context";
 import {
   initializeSocket,
-  getSocket,
   disconnectSocket,
   onCanvasUpdated,
   onUserJoined,
@@ -12,10 +11,10 @@ import {
 } from "../utils/socket";
 
 export const SocketProvider = ({ children, token }) => {
-  const [socket, setSocket] = useState(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [connection, setConnection] = useState(null);
   const [collaborators, setCollaborators] = useState([]);
-  const [socketListeners, setSocketListeners] = useState({});
+  const socket = connection?.token === token ? connection?.socket : null;
+  const isConnected = Boolean(socket && connection.isConnected);
 
   // Initialize socket connection
   useEffect(() => {
@@ -23,29 +22,22 @@ export const SocketProvider = ({ children, token }) => {
 
     try {
       const socketInstance = initializeSocket(token);
-      setSocket(socketInstance);
-
       const handleConnect = () => {
-        console.log("Socket connected");
-        setIsConnected(true);
+        setConnection({ token, socket: socketInstance, isConnected: true });
       };
 
       const handleDisconnect = () => {
-        console.log("Socket disconnected");
-        setIsConnected(false);
+        setConnection({ token, socket: socketInstance, isConnected: false });
         setCollaborators([]);
       };
 
       socketInstance.on("connect", handleConnect);
       socketInstance.on("disconnect", handleDisconnect);
 
-      if (socketInstance.connected) {
-        setIsConnected(true);
-      }
-
       return () => {
         socketInstance.off("connect", handleConnect);
         socketInstance.off("disconnect", handleDisconnect);
+        disconnectSocket();
       };
     } catch (error) {
       console.error("Failed to initialize socket:", error);
@@ -72,19 +64,8 @@ export const SocketProvider = ({ children, token }) => {
   useEffect(() => {
     if (!socket || !isConnected) return;
 
-    // Store callbacks so we can clean them up later
-    const listeners = {
-      canvasUpdated: null,
-      userJoined: null,
-      userLeft: null,
-      cursorMoved: null,
-    };
-
-    // Register the listeners
     onUserJoined(handleUserJoined);
     onUserLeft(handleUserLeft);
-
-    setSocketListeners(listeners);
 
     return () => {
       // Clean up listeners
@@ -92,14 +73,6 @@ export const SocketProvider = ({ children, token }) => {
       removeSocketListener("user-left", handleUserLeft);
     };
   }, [socket, isConnected, handleUserJoined, handleUserLeft]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Don't disconnect on unmount unless the entire provider is being unmounted
-      // This prevents disconnection when navigating between pages
-    };
-  }, []);
 
   const value = {
     socket,
@@ -112,7 +85,7 @@ export const SocketProvider = ({ children, token }) => {
   };
 
   return (
-    <socketContext.Provider value={value}>{children}</socketContext.Provider>
+    <SocketContext.Provider value={value}>{children}</SocketContext.Provider>
   );
 };
 

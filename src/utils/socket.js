@@ -54,29 +54,11 @@ export const getSocket = () => {
  * @param {string} canvasId - The canvas ID
  * @returns {Promise}
  */
-export const joinCanvas = (canvasId) => {
-  return new Promise((resolve, reject) => {
-    if (!socket) {
-      reject(new Error("Socket not initialized"));
-      return;
-    }
-
-    socket.emit("join-canvas", canvasId);
-
-    // Listen for successful join or error
-    const handleError = (error) => {
-      socket.off("error", handleError);
-      reject(error);
-    };
-
-    socket.once("error", handleError);
-
-    // Assume success if no error within a reasonable time
-    setTimeout(() => {
-      socket.off("error", handleError);
-      resolve();
-    }, 1000);
-  });
+export const joinCanvas = async (canvasId) => {
+  if (!socket?.connected) throw new Error("Socket is disconnected");
+  const result = await socket.timeout(10000).emitWithAck("join-canvas", canvasId);
+  if (!result.success) throw new Error(result.message);
+  return result;
 };
 
 /**
